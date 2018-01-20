@@ -1,0 +1,25 @@
+{
+  "name": "tradebot",
+  "version": "1.0.0",
+  "description": "Automated trading and price analysis",
+  "main": "app.js",
+  "scripts": {
+    "start": "node ./app.js",
+    "dev": "nodemon ./app.js",
+    "test": "cross-env NODE_ENV=test mocha"
+  },
+  "keywords": [],
+  "author": "Rocky Robson",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.17.1",
+    "crypto": "^1.0.1",
+    "knex": "^0.14.2",
+    "mocha": "^4.1.0",
+    "mysql2": "^1.5.1",
+    "nodemon": "^1.14.9"
+  },
+  "devDependencies": {
+    "cross-env": "^5.1.3"
+  }
+}
