@@ -26,7 +26,6 @@ const FORMATTED_INTERVAL = INTERVAL + 'h'
 /**
  * Make a prediction of the next n points of data based on occurrences in historical data
  *
- * @param currentKlineData current candlestick data to analyze
  * @param market
  */
 async function run (market) {
@@ -36,9 +35,9 @@ async function run (market) {
 
   let kline
   try {
-    kline = await db.selectAll('ltc1h')
-    history = kline.map(ohlc => Object.values(ohlc))
-    testData = history.slice(200000, 200214)
+    // kline = await db.selectAll('ltc1h')
+    // history = kline.map(ohlc => Object.values(ohlc))
+    // testData = history.slice(200000, 200214)
 
     // console.log(history.length)
     // history = history.slice(0, 10)
@@ -150,42 +149,6 @@ async function findPatterns (history, changes, k, matcher) {
 /**
  * Analyze a set of candlesticks representing the current trend (amount determined by the LOOKBACK value)
  * and attempt to match the set with a similar set in historical kline data. A set is matched if it is
- * within the THRESHOLD value of the current trend set. If a matching set is found, the index of the
- * subsequent candlestick is returned.
- *
- * Example:
- *
- * Current trend set = [121, 122, 123]
- * Pattern is matched at [345, 346, 347]
- * Return value is 348
- *
- * VERIFIED
- *
- * @param history historical kline data
- * @param changes changes of current trend
- * @param i       index
- * @param k       kline indices
- * @param count   count of recursive iterations. Used as the index value of the changes argument
- * @returns {number} historical data index of the subsequent candlestick after a set is matched
- */
-function recursiveChangeMatching (history, changes, i, k, count = 0) {
-  const open  = history[i][k.open]
-  const close = history[i][k.close]
-
-  const change = calculateChange(open, close)
-
-  if(Math.abs(change - changes[count]) < THRESHOLD) {
-    if(i + 1 < history.length) {
-      return recursiveChangeMatching(history, changes, ++i, k, ++count)
-    }
-  } else {
-    return count === LOOKBACK  ? i : 0
-  }
-}
-
-/**
- * Analyze a set of candlesticks representing the current trend (amount determined by the LOOKBACK value)
- * and attempt to match the set with a similar set in historical kline data. A set is matched if it is
  * within the THRESHOLD value of the current trend set. If a matching set is found, the candlestick at
  * index + LOOKBACK + 1 is return. This will be the next candlestick after the current trend candlestick
  *
@@ -217,50 +180,6 @@ function candlesticksAfterCurrentTrend (history, changes, i, k, results = []) {
     }
   } else {
     return results.length === LOOKBACK ? results : 0
-  }
-}
-
-/**
- * Check whether or not one data point equals another, allowing for a margin
- * set by the THRESHOLD value. Used for matching the change of one candlestick vs
- * the change of another candlestick
- *
- * @param a
- * @param b
- * @returns {boolean} true if two data points are within the THRESHOLD, false otherwise
- */
-function withinThreshold(a, b){
-  return Math.abs(a - b) < THRESHOLD
-}
-
-/**
- * Return a candlestick set that occurred immediately after a matched pattern in a data set
- *
- * @param kline     kline data set
- * @param locations indices representing the last candlestick in a detected pattern.
- * @param k         kline indices
- * @returns {Promise.<Array>}
- */
-async function getOccurrences (kline, locations, k) {
-  let results = [], count = 0, i, j
-
-  try {
-    for(i = 0; i < locations.length; i++) {
-      results.push([])
-      const index = locations[i] + 1
-
-      for(j = index; j < index + LOOKBACK; j++) {
-        if(index + LOOKBACK < kline.length) {
-          results[i].push([kline[j][k.openTime], kline[j][k.open], kline[j][k.high], kline[j][k.low], kline[j][k.close]])
-        }
-      }
-
-      if(++count === locations.length) {
-        return results
-      }
-    }
-  } catch (err) {
-    throw err
   }
 }
 
@@ -299,6 +218,17 @@ async function getAverageChanges (x, k) {
   }
 }
 
+/**
+ * Apply average changes of all patterns matched to the current trend pattern and
+ * apply the current price to these averages to build a prediction in the form of
+ * the next candlesticks (amount of candlesticks in prediction is determined by the
+ * LOOKAHEAD value)
+ *
+ * @param changes     average changes of all matched patterns found in historical data
+ * @param candlestick the current candlestick
+ * @param k           kline indices
+ * @returns { Array } an array containing the the prediction as OHLC candlestick data
+ */
 async function applyPriceToAverages(changes, candlestick, k){
   let results = [], open, close
   let count = 0, i
@@ -319,6 +249,19 @@ async function applyPriceToAverages(changes, candlestick, k){
       return results
     }
   }
+}
+
+/**
+ * Check whether or not one data point equals another, allowing for a margin
+ * set by the THRESHOLD value. Used for matching the change of one candlestick vs
+ * the change of another candlestick
+ *
+ * @param a
+ * @param b
+ * @returns {boolean} true if two data points are within the THRESHOLD, false otherwise
+ */
+function withinThreshold(a, b){
+  return Math.abs(a - b) < THRESHOLD
 }
 
 /**
