@@ -11,10 +11,12 @@ async function scanFor (indicator, market, database) {
       const data = await market.kline(pairs[count], '4h', 10)
       const result = await indicator.run(data, history, market.klineIndices())
 
-      if(result.samples > 0) {
-        const change = parseFloat(result.totalChange.toFixed(8))
-        console.log(`${pairs[count].padStart(10)} | change: ${change.toString().padEnd(16)} | samples: ${result.samples}`)
-      }
+      console.log(result.current.toString())
+
+      // if(result.samples > 0) {
+      //   const change = parseFloat(result.totalChange.toFixed(8))
+      //   console.log(`${pairs[count].padStart(10)} | change: ${change.toString().padEnd(16)} | samples: ${result.samples}`)
+      // }
 
       if(++count === pairs.length) {
         clearInterval(loop)

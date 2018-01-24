@@ -280,11 +280,7 @@ function round (number, precision) {
  * @returns {number} average value of values from array
  */
 function average (array) {
-  try {
-    return array.reduce((a, b) => a + b, 0) / array.length
-  } catch (err) {
-    throw err
-  }
+  return array.reduce((a, b) => a + b, 0) / array.length
 }
 
 function incrementTime (current, plus) {
