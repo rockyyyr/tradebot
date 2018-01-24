@@ -1,5 +1,3 @@
-const db = require('../../../database/db')
-
 /**
  * Amount of candlesticks in a row to match against
  */
@@ -14,7 +12,7 @@ const LOOKBACK = 3
 /**
  * Percentage of difference in price between to candlesticks
  */
-const THRESHOLD = percent(0.1)
+const THRESHOLD = percent(10)
 
 /**
  * Interval value and formatted interval string which determines the timeframe of
@@ -27,89 +25,57 @@ const FORMATTED_INTERVAL = INTERVAL + 'h'
  * Make a prediction of the next n points of data based on occurrences in historical data
  *
  * @param market
+ * @param data
+ * @param database
  */
-async function run (market) {
-
-  let history = require('../../../data/VENBTC_6h.json')
-  let testData = history.slice(0, 124)
-
-  let kline
-  try {
-    // kline = await db.selectAll('ltc1h')
-    // history = kline.map(ohlc => Object.values(ohlc))
-    // testData = history.slice(200000, 200214)
-
-    // console.log(history.length)
-    // history = history.slice(0, 10)
-    // history.forEach(x => console.log(x))
-
-  } catch (err) {
-    console.log(err)
-  }
-
-
-  // testData.forEach((x, i) => console.log(JSON.stringify(x) + ' | ' + i))
-
+async function run (market, data, database) {
   try {
     const klineIndices = market.klineIndices()
+    let history = await database.selectAll('4h')
+    history = history.map(x => Object.values(x))
 
-    const changes = await getChangeForEachCandleStick(testData, klineIndices)
-    if(changes.length > 0) changes.forEach(x => console.log('change: ' + JSON.stringify(x)))
+    const current = getCurrentCandlesticks(data)
+    const changes = calculateChanges(current, klineIndices)
+    const samples  = await findSamples(history, changes, klineIndices, candlesticksAfterCurrentTrend)
+    const averages = await getAverageChanges(samples, klineIndices)
+    const results  = await applyPriceToAverages(averages, current[current.length - 1], klineIndices)
 
-    const currentCandlestick = testData[testData.length - 1]
-    console.log(JSON.stringify(currentCandlestick))
-
-    const patterns = await findPatterns(history, changes, klineIndices, candlesticksAfterCurrentTrend)
-    // patterns.forEach((x, i) => console.log(JSON.stringify(x) + ' | ' + i))
-    console.log(patterns.length)
-    // if(patterns.length > 0) patterns.forEach(x => console.log(JSON.stringify(x)))
-    // console.log(patterns.length)
-
-    const averageChanges = await getAverageChanges(patterns, klineIndices)
-    if(averageChanges.length > 0) averageChanges.forEach(x => console.log(JSON.stringify(x)))
-
-    const final = await applyPriceToAverages(averageChanges, currentCandlestick, klineIndices)
-    final.forEach(x => console.log(JSON.stringify(x)))
-
-    console.log('\nexiting...')
-    process.exit(0)
+    return {
+      current,
+      results,
+      samples: samples.length,
+      totalChange: (sum(averages) * 100) * 12
+    }
 
   } catch (err) {
-    console.log(err)
-    process.exit(1)
+    throw err
   }
 }
 
 /**
- * Read an amount of current candlesticks determined by the LOOKBACK
- * value and calculate their change over the time frame.
- * Candlesticks are returned in chronological order, index = length - 1 being the latest
- * or current candlestick
+ * Return the most current candlesticks from a data set. Amount of candlesticks is determined
+ * by the LOOKBACK value. Most recent candlestick will be the last element of the return array
  *
- * VERIFIED
- *
- * @param kline
- * @param k
- * @returns {Promise.<Array>}
+ * @param data candlestick data set
+ * @returns { Array } current candlesticks as OHLC data
  */
-async function getChangeForEachCandleStick (kline, k) {
-  let results = []
-  let count = 0, i
-
-  for(i = kline.length - LOOKBACK; i < kline.length; i++) {
-    const open  = kline[i][k.open]
-    const close = kline[i][k.close]
-
-    results.push(calculateChange(open, close))
-
-    if(++count === LOOKBACK) {
-      return results
-    }
-  }
+function getCurrentCandlesticks(data){
+  return data.slice(data.length - 1 - LOOKBACK, data.length - 1)
 }
 
 /**
- * Returns an array of historical data indexes representing the first candlestick after a set has been matched
+ * Calculate change for each element in an array of OHLC data
+ *
+ * @param data candlestick data set
+ * @param k kline indices
+ * @returns { Array } array who's elements are the open/close change for the time period
+ */
+function calculateChanges(data, k){
+  return data.map(x => calculateChange(x[k.open], x[k.close]))
+}
+
+/**
+ * Returns an array of every instance in historical data where a pattern was matched
  *
  * @param history
  * @param changes
@@ -117,7 +83,7 @@ async function getChangeForEachCandleStick (kline, k) {
  * @param matcher
  * @returns {Promise.<Array>}
  */
-async function findPatterns (history, changes, k, matcher) {
+async function findSamples (history, changes, k, matcher) {
   let results = []
   let count = 0, i
 
@@ -144,6 +110,13 @@ async function findPatterns (history, changes, k, matcher) {
   } catch (err) {
     throw err
   }
+}
+
+function findSamples2 (history, changes, k, matcher){
+  let match = false
+  return history.filter(async ohlc => {
+    match = await matcher(history, changees, k)
+  })
 }
 
 /**
@@ -230,25 +203,37 @@ async function getAverageChanges (x, k) {
  * @returns { Array } an array containing the the prediction as OHLC candlestick data
  */
 async function applyPriceToAverages(changes, candlestick, k){
-  let results = [], open, close
+  let results = [], time, open, high, low, close
   let count = 0, i
   for(i = 0; i < changes.length; i++){
 
     if(i === 0){
+      time = incrementTime(candlestick[k.openTime], 1)
+      // time = i
       open = parseFloat(candlestick[k.close])
     } else {
-      open = close
+      time = incrementTime(time, 1)
+      // time = i
+      open = close.valueOf()
     }
 
     // close = parseFloat(parseFloat(open + (open * changes[i])).toFixed(8))
-    close = round(open + (open * changes[i]), 8)
+    // close = round(open + (open * changes[i]), 8)
+    close = round(applyChange(open, changes[i]), 8)
 
-    results.push([open, close])
+    high = open.valueOf()
+    low = close.valueOf()
+
+    results.push([time, open, high, low, close])
 
     if(++count === changes.length){
       return results
     }
   }
+}
+
+function applyChange(price, change){
+  return price + (price * change)
 }
 
 /**
@@ -320,4 +305,18 @@ function average (array) {
   }
 }
 
-module.exports = { run }
+function incrementTime(current, plus){
+  let date = new Date(current)
+  date = date.setHours(date.getHours() + plus)
+  return date.valueOf()
+}
+
+function print(array){
+  array.forEach(x => console.log(JSON.stringify(x)))
+}
+
+function sum(array){
+  return array.reduce((a, b) => a + b, 0)
+}
+
+module.exports = { run, getCurrentCandlesticks, calculateChanges, findSamples, candlesticksAfterCurrentTrend, getAverageChanges }

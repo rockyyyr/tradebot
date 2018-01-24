@@ -12,6 +12,7 @@
   "author": "Rocky Robson",
   "license": "ISC",
   "dependencies": {
+    "array-equal": "^1.0.0",
     "axios": "^0.17.1",
     "crypto": "^1.0.1",
     "knex": "^0.14.2",

@@ -2,6 +2,7 @@ const assert = require('assert')
 const { investments, strategies } = require('../tools')
 
 describe('investments', () => {
+
   describe('#calculateInitial', () => {
     const fund = 0.001, profit = 0.0005
     const strategy = strategies.oneToOne(fund, profit)

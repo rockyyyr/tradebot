@@ -1,7 +1,7 @@
 const { analyzer, automator } = require('./tools')
 const { Market, Binance } = require('./exchange')
-const { database } = require('./database/db')
 const { Account } = require('./personal')
+const database = require('./database/db')
 
 const { generic } = require('./tools/indicators/candlesticks')
 

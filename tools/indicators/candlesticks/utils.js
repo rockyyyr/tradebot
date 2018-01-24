@@ -64,3 +64,31 @@ function recursiveChangeMatching (history, changes, i, k, count = 0) {
     return count === LOOKBACK  ? i : 0
   }
 }
+
+/**
+ * Read an amount of current candlesticks determined by the LOOKBACK
+ * value and calculate their change over the time frame.
+ * Candlesticks are returned in chronological order, index = length - 1 being the latest
+ * or current candlestick
+ *
+ * VERIFIED
+ *
+ * @param kline
+ * @param k
+ * @returns {Promise.<Array>}
+ */
+async function getChangeForEachCandleStick (kline, k) {
+  let results = []
+  let count = 0, i
+
+  for(i = kline.length - LOOKBACK; i < kline.length; i++) {
+    const open  = kline[i][k.open]
+    const close = kline[i][k.close]
+
+    results.push(calculateChange(open, close))
+
+    if(++count === LOOKBACK) {
+      return results
+    }
+  }
+}

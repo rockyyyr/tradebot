@@ -92,8 +92,6 @@ describe('Account', () => {
         await account.buy(investment)
         await account.buy(investment2)
         portfolio = await account.assets()
-        // const hold = investments.calculateHold(portfolio[0])
-        // await account.hold(hold)
 
       } catch (err) {
         return console.error(err)
@@ -101,11 +99,7 @@ describe('Account', () => {
 
       portfolio = await account.assets()
 
-      console.log(portfolio.length)
-      console.log(JSON.stringify(portfolio))
       return assert(portfolio.length, 2) && assert(portfolio[0].symbol, 'LTCBTC')
     })
   })
-
-
 })

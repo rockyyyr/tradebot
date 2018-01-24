@@ -8,7 +8,9 @@ const knex = require('knex')({
   pool: { min: 0, max: 7 }
 })
 
-knex.schema.hasTable('ETH1h').then(exists => { if(!exists) createLTCDataTable() })
+const dataTable = '4h'
+
+knex.schema.hasTable(dataTable).then(exists => { if(!exists) createLTCDataTable() })
 knex.schema.hasTable('history').then(exists => { if(!exists) createHistoryTable() })
 knex.schema.hasTable('portfolio').then(exists => { if(!exists) createPortfolioTable() })
 knex.schema.hasTable('currencies').then(exists => { if(!exists) createCurrenciesTable() })
@@ -58,7 +60,7 @@ function createCurrenciesTable(){
 }
 
 function createLTCDataTable(){
-  knex.schema.createTable('ETH1h', column => {
+  knex.schema.createTable(dataTable, column => {
     column.string('openTime')
     column.decimal('open', 16, 8)
     column.decimal('high', 16, 8)
@@ -67,7 +69,7 @@ function createLTCDataTable(){
     column.decimal('volume', 16, 8)
     column.string('closeTime')
 
-  }).then(() => console.log('LTC1m data table created'))
+  }).then(() => console.log(dataTable + ' data table created'))
     .catch(console.error)
 }
 
