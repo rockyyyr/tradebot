@@ -3,10 +3,13 @@ async function scanFor (indicator, market, database) {
     let pairs = await database.selectAll('currencies')
     pairs = pairs.map(x => x.symbol)
 
+    let history = await database.selectAll('4h')
+    history = history.map(x => Object.values(x))
+
     let count = 0
     const loop = setInterval(async () => {
       const data = await market.kline(pairs[count], '4h', 10)
-      const result = await indicator.run(market, data, database)
+      const result = await indicator.run(data, history, market.klineIndices())
 
       if(result.samples > 0) {
         const change = parseFloat(result.totalChange.toFixed(8))

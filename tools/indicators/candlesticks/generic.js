@@ -12,39 +12,28 @@ const LOOKBACK = 3
 /**
  * Percentage of difference in price between to candlesticks
  */
-const THRESHOLD = percent(10)
-
-/**
- * Interval value and formatted interval string which determines the timeframe of
- * kline data to be analyzed
- */
-const INTERVAL = 6
-const FORMATTED_INTERVAL = INTERVAL + 'h'
+const THRESHOLD = percent(1)
 
 /**
  * Make a prediction of the next n points of data based on occurrences in historical data
  *
- * @param market
+ * @param klineIndices
  * @param data
- * @param database
+ * @param history
  */
-async function run (market, data, database) {
+async function run (data, history, klineIndices) {
   try {
-    const klineIndices = market.klineIndices()
-    let history = await database.selectAll('4h')
-    history = history.map(x => Object.values(x))
-
     const current = getCurrentCandlesticks(data)
     const changes = calculateChanges(current, klineIndices)
-    const samples  = await findSamples(history, changes, klineIndices, candlesticksAfterCurrentTrend)
-    const averages = await getAverageChanges(samples, klineIndices)
-    const results  = await applyPriceToAverages(averages, current[current.length - 1], klineIndices)
+    const samples = await findSamples(history, changes, klineIndices, candlesticksAfterCurrentTrend)
+    const average = await getAverageChanges(samples, klineIndices)
+    const results = await applyPriceToAverages(average, current[current.length - 1], klineIndices)
 
     return {
       current,
       results,
       samples: samples.length,
-      totalChange: (sum(averages) * 100) * 12
+      totalChange: (sum(average) * 100)
     }
 
   } catch (err) {
@@ -59,7 +48,7 @@ async function run (market, data, database) {
  * @param data candlestick data set
  * @returns { Array } current candlesticks as OHLC data
  */
-function getCurrentCandlesticks(data){
+function getCurrentCandlesticks (data) {
   return data.slice(data.length - 1 - LOOKBACK, data.length - 1)
 }
 
@@ -70,7 +59,7 @@ function getCurrentCandlesticks(data){
  * @param k kline indices
  * @returns { Array } array who's elements are the open/close change for the time period
  */
-function calculateChanges(data, k){
+function calculateChanges (data, k) {
   return data.map(x => calculateChange(x[k.open], x[k.close]))
 }
 
@@ -94,7 +83,7 @@ async function findSamples (history, changes, k, matcher) {
       // if a result is found, the recursive function has iterated,
       // increase i and count past the iterations of the recursive function
       if(result !== 0) {
-        if(i + LOOKBACK < history.length - 1){
+        if(i + LOOKBACK < history.length - 1) {
           i += LOOKBACK - 1
           count += LOOKBACK - 1
         }
@@ -110,13 +99,6 @@ async function findSamples (history, changes, k, matcher) {
   } catch (err) {
     throw err
   }
-}
-
-function findSamples2 (history, changes, k, matcher){
-  let match = false
-  return history.filter(async ohlc => {
-    match = await matcher(history, changees, k)
-  })
 }
 
 /**
@@ -139,7 +121,7 @@ function findSamples2 (history, changes, k, matcher){
  * @returns {number} historical data index of the subsequent candlestick after a set is matched
  */
 function candlesticksAfterCurrentTrend (history, changes, i, k, results = []) {
-  const open  = history[i][k.open]
+  const open = history[i][k.open]
   const close = history[i][k.close]
 
   const change = calculateChange(open, close)
@@ -202,12 +184,12 @@ async function getAverageChanges (x, k) {
  * @param k           kline indices
  * @returns { Array } an array containing the the prediction as OHLC candlestick data
  */
-async function applyPriceToAverages(changes, candlestick, k){
+async function applyPriceToAverages (changes, candlestick, k) {
   let results = [], time, open, high, low, close
   let count = 0, i
-  for(i = 0; i < changes.length; i++){
+  for(i = 0; i < changes.length; i++) {
 
-    if(i === 0){
+    if(i === 0) {
       time = incrementTime(candlestick[k.openTime], 1)
       // time = i
       open = parseFloat(candlestick[k.close])
@@ -226,13 +208,13 @@ async function applyPriceToAverages(changes, candlestick, k){
 
     results.push([time, open, high, low, close])
 
-    if(++count === changes.length){
+    if(++count === changes.length) {
       return results
     }
   }
 }
 
-function applyChange(price, change){
+function applyChange (price, change) {
   return price + (price * change)
 }
 
@@ -245,7 +227,7 @@ function applyChange(price, change){
  * @param b
  * @returns {boolean} true if two data points are within the THRESHOLD, false otherwise
  */
-function withinThreshold(a, b){
+function withinThreshold (a, b) {
   return Math.abs(a - b) < THRESHOLD
 }
 
@@ -286,7 +268,7 @@ function percent (num) {
  * @param precision precision to round to
  * @returns {number} rounded number
  */
-function round(number, precision) {
+function round (number, precision) {
   const factor = Math.pow(10, precision);
   return Math.round(number * factor) / factor;
 }
@@ -305,18 +287,25 @@ function average (array) {
   }
 }
 
-function incrementTime(current, plus){
+function incrementTime (current, plus) {
   let date = new Date(current)
   date = date.setHours(date.getHours() + plus)
   return date.valueOf()
 }
 
-function print(array){
+function print (array) {
   array.forEach(x => console.log(JSON.stringify(x)))
 }
 
-function sum(array){
+function sum (array) {
   return array.reduce((a, b) => a + b, 0)
 }
 
-module.exports = { run, getCurrentCandlesticks, calculateChanges, findSamples, candlesticksAfterCurrentTrend, getAverageChanges }
+module.exports = {
+  run,
+  getCurrentCandlesticks,
+  calculateChanges,
+  findSamples,
+  candlesticksAfterCurrentTrend,
+  getAverageChanges
+}
