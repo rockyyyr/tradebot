@@ -13,6 +13,7 @@ const dataTable = '4h'
 knex.schema.hasTable(dataTable).then(exists => { if(!exists) createLTCDataTable() })
 knex.schema.hasTable('history').then(exists => { if(!exists) createHistoryTable() })
 knex.schema.hasTable('portfolio').then(exists => { if(!exists) createPortfolioTable() })
+knex.schema.hasTable('resultsets').then(exists => { if(!exists) createResultSetTable() })
 knex.schema.hasTable('currencies').then(exists => { if(!exists) createCurrenciesTable() })
 
 function createPortfolioTable () {
@@ -70,6 +71,18 @@ function createLTCDataTable(){
     column.string('closeTime')
 
   }).then(() => console.log(dataTable + ' data table created'))
+    .catch(console.error)
+}
+
+function createResultSetTable(){
+  knex.schema.createTable('resultsets', column => {
+    column.string('symbol')
+    column.text('current')
+    column.text('result')
+    column.string('totalChange')
+    column.integer('samples')
+
+  }).then(() => console.log('resultsets table created'))
     .catch(console.error)
 }
 

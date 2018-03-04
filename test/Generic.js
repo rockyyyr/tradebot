@@ -2,6 +2,7 @@ const assert = require('assert')
 const equal = require('array-equal')
 const { generic } = require('../tools/indicators/candlesticks')
 const { Binance } = require('../exchange')
+const testData = require('./data/test-data.json')
 
 /**
  * Dependent on profile. (LOOKBACK = 3, THRESHOLD = 10%)
@@ -42,15 +43,24 @@ describe('Generic Candlestick Analysis', () => {
   })
 
   describe('#getAverageChanges', () => {
-    const verified = verifiedTestData.getAverageChanges
-
+    // const verified = verifiedTestData.getAverageChanges
+    //
+    // it('returns average changes from all matched patterns', async () => {
+    //   const current = generic.getCurrentCandlesticks(testData)
+    //   const changes = generic.calculateChanges(current, k)
+    //   const samples = await generic.findSamples(history, changes, k, generic.candlesticksAfterCurrentTrend)
+    //   const averages = await generic.getAverageChanges(samples, k)
+    //
+    //   console.log(averages)
+    //
+    //   assert(equal(verified, averages))
+    // })
     it('returns average changes from all matched patterns', async () => {
-      const current = generic.getCurrentCandlesticks(testData)
-      const changes = generic.calculateChanges(current, k)
-      const samples = await generic.findSamples(history, changes, k, generic.candlesticksAfterCurrentTrend)
-      const averages = await generic.getAverageChanges(samples, k)
+      const problem = testData.getAverageChanges
+      const solution = testData.getAverageChangesSolution
 
-      assert(equal(verified, averages))
+      const result = await generic.getAverageChanges(problem, k)
+      assert(equal(solution, result))
     })
   })
 

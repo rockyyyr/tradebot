@@ -12,7 +12,7 @@ const LOOKBACK = 3
 /**
  * Percentage of difference in price between to candlesticks
  */
-const THRESHOLD = percent(1)
+const THRESHOLD = percent(0.0000000001)
 
 /**
  * Make a prediction of the next n points of data based on occurrences in historical data
@@ -173,6 +173,18 @@ async function getAverageChanges (x, k) {
   }
 }
 
+async function getAverageChanges1(samples, k){
+  return samples.forEach((sample, i) => sample)
+}
+
+async function getAverageChanges2(samples, k) {
+  // return samples.reduce((acc, curr) => acc + calculateChange(curr[k.open], curr[k.close]), [])
+  // return samples.map((item, i) => item.forEach(x => calculateChange(x[k.open], x[k.close])))
+  return samples.map(sample => {
+    return sample.map(candle => calculateChange(candle[k.open], candle[k.close]))
+  })
+}
+
 /**
  * Apply average changes of all patterns matched to the current trend pattern and
  * apply the current price to these averages to build a prediction in the form of
@@ -239,7 +251,7 @@ function withinThreshold (a, b) {
  * @returns {number} change percentage between the parameter prices
  */
 function calculateChange (open, close) {
-  return ((close - open) / close)
+  return (close - open) / open
 }
 
 /**
